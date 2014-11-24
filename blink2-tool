@@ -1,0 +1,135 @@
+#!/bin/bash
+##### CONFIGURATION
+# Path to blink-tool(1)
+BLINK1_TOOL="`which blink1-tool`"
+# How long to sleep and animate. Not all versions of sleep support floats
+SLEEP="sleep .5" # seconds
+FADE=500 # milliseconds
+# number of times to blink
+NUM_BLINK=5
+
+##### FUNCTIONS
+function set_one
+{
+    $BLINK1_TOOL --led ${1} -m $FADE ${2} > /dev/null 2>&1
+}
+
+function set_both
+{
+    set_one 1 ${1}
+    set_one 2 ${2}
+}
+
+function blink_both
+{
+    num_times=${1}
+    color_1=${2}
+    color_2=${3}
+    
+    #echo ${@}
+    for ((i=0; i<$num_times; i++ )) ; do
+        set_both $color_1 --off
+        $SLEEP
+        set_both --off $color_2
+        $SLEEP
+    done
+    set_both $color_1 $color_2
+}
+
+function blink_one
+{
+    num_times=${1}
+    led_blink=${2}
+    color_1=${3}
+    color_2=${4}
+
+    set_both $color_1 $color_2
+    for ((i=0; i<$num_times; i++ )) ; do
+        set_one $led_blink --off
+        $SLEEP
+        if [ $led_blink == 1 ]; then
+            set_one $led_blink ${color_1}
+        else
+            set_one $led_blink ${color_2}
+        fi
+        $SLEEP
+    done
+}
+
+# Used with trap to shut off the Blink(1) when we get a SIGINT or SIGTERM.
+function cleanup
+{
+    # Turn the Blink(1) off
+    $BLINK1_TOOL --off > /dev/null 2>&1
+    exit $?
+}
+
+function show_usage
+{
+    echo " Usage: `basename ${0}` [OPTIONS] <color1> <color2>"
+    echo ""
+    echo "Options:"
+    echo "   -h        Displays this help"
+    echo "   -b <led>  Led values are 1,2,both"
+    echo "   -n <num>  Number of times to blink"
+    echo ""
+    echo "<color1> and <color2> will be passed to blink1-tool with"
+    echo "double dashes preceeding them."
+    echo ""
+}
+
+##### SETUP
+while getopts ":hb:n:" OPTION
+do
+    case $OPTION in
+        h)
+          show_usage
+          exit 0
+          ;;
+        b)
+          BLINK=$OPTARG
+          ;;
+        n)
+          NUM_BLINK=$OPTARG
+          ;;
+    esac
+done
+
+# get the colors
+shift $(($OPTIND - 1))
+if [ $1 ]; then
+    color1="--$1"
+else
+    echo "Must specify two colors"
+    echo ""
+    show_usage
+    exit 1
+fi
+if [ $2 ]; then
+    color2="--$2"
+else
+    echo "Must specify two colors"
+    echo ""
+    show_usage
+    exit 1
+fi
+
+#echo "blink  $BLINK"
+#echo "num    $NUM_BLINK"
+#echo "color1 $color1"
+#echo "color2 $color2"
+
+if [ -z "$BLINK" ]; then
+    set_both $color1 $color2
+else
+    if [ "$BLINK" == "1" -o "$BLINK" == "2" ]; then
+        blink_one $NUM_BLINK $BLINK $color1 $color2
+    elif [ "$BLINK" == "both" ]; then
+        blink_both $NUM_BLINK $color1 $color2
+    else
+        echo "Invalid value for blink (1,2,both): $BLINK"
+        echo ""
+        show_usage
+        exit 1
+    fi
+fi
