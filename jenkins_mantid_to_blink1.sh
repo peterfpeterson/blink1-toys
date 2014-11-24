@@ -58,7 +58,7 @@ function get_blink
 
 function get_color
 {
-    COLOR=$(echo $1 | sed 's,<color>\|</color>,,g')
+    COLOR=$(echo $1 | sed -e 's,<color>,,' -e 's,</color>,,') 
     if [ $BLINK2_TOOL ]; then
         COLOR=$(echo $1 | sed 's,_anime,,g')
     fi
