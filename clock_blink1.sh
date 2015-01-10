@@ -84,7 +84,7 @@ function show_time_sweep
     # hours
     led_full=$(echo ${1}-1 | bc)
     for ((i=0; i<12; i++)) ; do
-        if [ $i -lt $led_full ]; then
+        if [ $i -le $led_full ]; then
             colors[$i]=$MAX_BRIGHT
         else
             colors[$i]=0
@@ -128,8 +128,8 @@ function show_time_sweep
 function show_now
 {
     echo "***** $(date "+%I %M %S")" # DEBUG
-    #show_time_sweep `date "+%I %M %S"`
-    show_time_spot `date "+%I %M %S"`
+    show_time_sweep `date "+%I %M %S"`
+    # show_time_spot `date "+%I %M %S"`
 }
 
 # Used with trap to shut off the Blink(1) when we get a SIGINT or SIGTERM.
@@ -156,14 +156,14 @@ function show_usage
 
 ### SETUP ###
 # Get command line options
-while getopts "hf:b:" OPTION
+while getopts "hf:" OPTION
 do
     case $OPTION in
         h)
             show_usage
             exit 0
             ;;
-        t)
+        f)
             POLL_FREQUENCY=$OPTARG
             ;;
         ?)
@@ -175,7 +175,8 @@ done
 
 shift $(($OPTIND - 1))
 if [ $3 ]; then
-    show_time_spot $1 $2 $3
+    show_time_sweep $1 $2 $3
+    # show_time_spot $1 $2 $3
     exit 0
 fi
 
