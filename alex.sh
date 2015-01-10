@@ -1,7 +1,7 @@
 #!/bin/sh
 BLINK1_TOOL=`which blink1-tool`
 SLEEP="sleep .5" # seconds
-FADE="-m 500" # milliseconds
+FADE="-m $(echo 10+\(300/12\) | bc)" # milliseconds
 
 function led()
 {
