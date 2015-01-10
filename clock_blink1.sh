@@ -4,7 +4,8 @@ POLL_FREQUENCY=1.5 # can be specified on command line
 MAX_BRIGHT=127 # 255 is the absolute top
 
 ### CONSTANTS - DON'T CHANGE THESE ###
-BLINK1_TOOL="`which blink1-tool`"
+BLINK1_TOOL=`which blink1-tool`
+FADE="--millis=$(echo 10+\(300/12\) | bc)"
 for ((i=0; i<12; i++)) ; do
   last_colors[$i]="00,00,00"
 done
@@ -15,7 +16,7 @@ done
 # as an argument.
 function set_blink1_color
 {
-    $BLINK1_TOOL --rgb ${1} --led ${2} > /dev/null 2>&1
+    $BLINK1_TOOL --rgb ${1} --led ${2} ${FADE} > /dev/null 2>&1
 }
 
 function set_leds
@@ -29,6 +30,37 @@ function set_leds
         fi
         last_colors[$i]=${colors[$i]}
     done
+}
+
+function streak_color
+{
+  R=$(echo ${1}*${2}/12 | bc)
+  G=$(echo ${1}*${3}/12 | bc)
+  B=$(echo ${1}*${4}/12 | bc)
+  echo "${R},${G},${B}"
+}
+
+function streak
+{
+  led_max=${1}
+  for ((i=0; i<12; i++)) ; do
+    if [ ${i} -lt ${led_max} ]; then
+      pos=$(echo ${i}+1+12-${led_max} | bc)
+      colors[$i]="$(streak_color ${pos} ${2} ${3} ${4})"
+    else
+      colors[$i]=0,0,0
+    fi
+  done
+
+  set_leds ${colors[@]}
+}
+
+function show_time_streak
+{
+  streak ${1} 0 0 ${MAX_BRIGHT}
+  sleep ${POLL_FREQUENCY}
+  streak $(echo ${2}*12/60 | bc) ${MAX_BRIGHT} ${MAX_BRIGHT} 0
+  sleep ${POLL_FREQUENCY} # sleep twice as long after minutes
 }
 
 function show_time_spot
@@ -128,7 +160,8 @@ function show_time_sweep
 function show_now
 {
     echo "***** $(date "+%I %M %S")" # DEBUG
-    show_time_sweep `date "+%I %M %S"`
+    show_time_streak `date "+%I %M %S"`
+    # show_time_sweep `date "+%I %M %S"`
     # show_time_spot `date "+%I %M %S"`
 }
 
@@ -175,8 +208,11 @@ done
 
 shift $(($OPTIND - 1))
 if [ $3 ]; then
-    show_time_sweep $1 $2 $3
+    show_time_streak $1 $2 $3
+    # show_time_sweep $1 $2 $3
     # show_time_spot $1 $2 $3
+    sleep 2
+    $BLINK1_TOOL --off
     exit 0
 fi
 
