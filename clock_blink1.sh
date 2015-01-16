@@ -2,6 +2,7 @@
 ### VARIABLES ###
 POLL_FREQUENCY=1.5 # can be specified on command line
 MAX_BRIGHT=127 # 255 is the absolute top
+ANIM=3
 
 ### CONSTANTS - DON'T CHANGE THESE ###
 BLINK1_TOOL=`which blink1-tool`
@@ -160,9 +161,21 @@ function show_time_sweep
 function show_now
 {
     echo "***** $(date "+%I %M %S")" # DEBUG
-    show_time_streak `date "+%I %M %S"`
-    # show_time_sweep `date "+%I %M %S"`
-    # show_time_spot `date "+%I %M %S"`
+    case $ANIM in
+        1)
+            show_time_streak `date "+%I %M %S"`
+            ;;
+        2)
+            show_time_sweep `date "+%I %M %S"`
+            ;;
+        3)
+            show_time_spot `date "+%I %M %S"`
+            ;;
+        ?)
+            echo "Unknown animation specified"
+            exit 1
+            ;;
+    esac
 }
 
 # Used with trap to shut off the Blink(1) when we get a SIGINT or SIGTERM.
@@ -182,16 +195,20 @@ function show_usage
     echo " Usage: `basename ${0}` [OPTIONS]"
     echo ""
     echo " Options:"
-    echo "    -h              Displays this help"
+    echo "    -a <number>     1=streak, 2=sweep, 3=spot (default: ${ANIM})"
     echo "    -f <seconds>    Polling interval in seconds (default: ${POLL_FREQUENCY} s.)"
+    echo "    -h              Displays this help"
 }
 
 
 ### SETUP ###
 # Get command line options
-while getopts "hf:" OPTION
+while getopts "hf:a:" OPTION
 do
     case $OPTION in
+        a)
+            ANIM=$OPTARG
+            ;;
         h)
             show_usage
             exit 0
@@ -208,9 +225,21 @@ done
 
 shift $(($OPTIND - 1))
 if [ $3 ]; then
-    show_time_streak $1 $2 $3
-    # show_time_sweep $1 $2 $3
-    # show_time_spot $1 $2 $3
+    case $ANIM in
+        1)
+            show_time_streak $1 $2 $3
+            ;;
+        2)
+            show_time_sweep $1 $2 $3
+            ;;
+        3)
+            show_time_spot $1 $2 $3
+            ;;
+        ?)
+            echo "Unknown animation specified"
+            exit 1
+            ;;
+    esac
     sleep 2
     $BLINK1_TOOL --off
     exit 0
