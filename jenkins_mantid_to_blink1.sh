@@ -12,8 +12,8 @@ BLINK2_TOOL="`which blink2-tool`"
 URL="http://builds.mantidproject.org/job/"
 
 # Build to monitor
-PROJECT="develop_incremental"
-PROJECT2="develop_clean"
+PROJECT="pull_requests"
+PROJECT2="master_clean"
 
 COLOR_GREEN="0,255,0"
 COLOR_RED="255,0,0"
