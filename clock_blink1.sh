@@ -33,35 +33,25 @@ function set_leds
     done
 }
 
-function streak_color
-{
-  R=$(echo ${1}*${2}/12 | bc)
-  G=$(echo ${1}*${3}/12 | bc)
-  B=$(echo ${1}*${4}/12 | bc)
-  echo "${R},${G},${B}"
-}
-
-function streak
-{
-  led_max=${1}
-  for ((i=0; i<12; i++)) ; do
-    if [ ${i} -lt ${led_max} ]; then
-      pos=$(echo ${i}+1+12-${led_max} | bc)
-      colors[$i]="$(streak_color ${pos} ${2} ${3} ${4})"
-    else
-      colors[$i]=0,0,0
-    fi
-  done
-
-  set_leds ${colors[@]}
-}
-
 function show_time_streak
 {
-  streak ${1} 0 0 ${MAX_BRIGHT}
-  sleep ${POLL_FREQUENCY}
-  streak $(echo ${2}*12/60 | bc) ${MAX_BRIGHT} ${MAX_BRIGHT} 0
-  sleep ${POLL_FREQUENCY} # sleep twice as long after minutes
+  first_led=3
+  hours=$(echo ${first_led}+${1} | bc)
+  minutes=$(echo ${first_led}+12*${2}/60 | bc)
+  seconds=$(echo ${first_led}+12*${3}/60 | bc)
+
+  echo "${hours}"
+  echo "${2} goes to ${minutes}"
+  echo "${3} goes to ${seconds}"
+  if [ ${hours} -gt ${minutes} ]; then
+    $BLINK1_TOOL --red --chase=1,${first_led},${hours}
+    sleep ${POLL_FREQUENCY}
+    $BLINK1_TOOL --blue --chase=1,${first_led},${minutes}
+  else
+    $BLINK1_TOOL --blue --chase=1,${first_led},${minutes}
+    sleep ${POLL_FREQUENCY}
+    $BLINK1_TOOL --red --chase=1,${first_led},${hours}
+  fi
 }
 
 function show_time_spot
