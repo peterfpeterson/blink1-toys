@@ -9,7 +9,10 @@ BLINK1_TOOL="`which blink1-tool`"
 BLINK2_TOOL="`which blink2-tool`"
 
 # URL of mantid jenkins
-URL="http://builds.mantidproject.org/job/"
+BUILD_URL="http://builds.mantidproject.org/job/"
+# URL of git project
+GIT_URL="https://api.github.com/repos/"
+REPO_DESCR="mantidproject/mantid/"
 
 # Build to monitor
 PROJECT="master_clean"
@@ -56,6 +59,45 @@ function get_blink
     fi
 }
 
+function get_github_oauth_token
+{
+    if [ -n "${1}" ]; then
+        token=${1}
+    elif [ -f ${HOME}/.ssh/github_oauth ]; then
+        token=$(cat ${HOME}/.ssh/github_oauth)
+    fi
+
+    if [ ${token} ]; then
+        echo "?access_token=${token}"
+    else
+        echo ""
+    fi
+}
+
+function get_pr_status
+{
+    pr_full=$(curl -f -s ${GIT_URL}${REPO_DESCR}pulls/${1}${GITHUB_ACCESS_TOKEN})
+    if [ -z "${pr_full}" ]; then
+        echo "error"
+    else
+        if [ $(echo ${pr_full} | jq '.state' | sed -s 's/\"//g') == "closed" ]; then
+            echo "green"
+        else
+            sha=$(echo ${pr_full} | jq '.head.sha' | sed -s 's/\"//g')
+            status=$(curl -f -s ${GIT_URL}${REPO_DESCR}status/${sha}${GITHUB_ACCESS_TOKEN} | jq '.state' -M | sed -s 's/\"//g')
+            if [ "${status}" == "failure" ]; then
+                echo "red"
+            elif [ "${status}" == "pending" ]; then
+                echo "yellow"
+            elif [ "${status}" == "success" ]; then
+                echo "blue"
+            else
+                echo "error"
+            fi
+        fi
+    fi
+}
+
 function get_color
 {
     COLOR=$(echo $1 | sed -e 's,<color>,,' -e 's,</color>,,')
@@ -69,7 +111,9 @@ function get_color
        echo ${COLOR_YELLOW}
     elif [ "${COLOR}" == "red" ]; then
        echo ${COLOR_RED}
-    elif [ "${COLOR}" == "aborted" ]; then
+    elif [ "${COLOR}" == "green" ]; then
+       echo ${COLOR_GREEN}
+   elif [ "${COLOR}" == "aborted" ]; then
        echo ${COLOR_ABORTED}
     elif [ "${COLOR}" == "blue_anime" ]; then
        echo ${COLOR_BLUE_BUILDING}
@@ -106,16 +150,21 @@ function show_usage
     echo " Options:"
     echo "    -h              Displays this help"
     echo "    -t <seconds>    Polling interval in seconds (default: ${POLL_FREQUENCY} s.)"
+    echo "    -p <pr>         Pull request number to watch. Will always be on led 1."
+    echo "    -a <token>      GitHub oauth token if needed"
     echo ""
     echo " <project> should be in the form job[/label=<build>] (default: ${PROJECT})"
     echo " Two projects can be specified, each controlling a different LED. "
     echo ""
+    echo "The authorization token will also be looked for in ~/.ssh/github_oauth. See"
+    echo "https://developer.github.com/v3/oauth_authorizations/#create-a-new-authorization"
+    echo "for details on creating a new token."
+    echo ""
 }
-
 
 ### SETUP ###
 # Get command line options
-while getopts "ht:b:" OPTION
+while getopts "ht:b:p:a:" OPTION
 do
     case $OPTION in
         h)
@@ -124,6 +173,12 @@ do
             ;;
         t)
             POLL_FREQUENCY=$OPTARG
+            ;;
+        p)
+            PULL_REQ=$OPTARG
+            ;;
+        a)
+            TOKEN=$OPTARG
             ;;
         ?)
             show_usage
@@ -144,6 +199,9 @@ fi
 if [ $PROJECT2 ]; then
     TWO=true
 fi
+if [ $PULL_REQ ]; then
+    PROJECT="pull/${PULL_REQ}"
+fi
 
 # Turn off the Blink(1) on SIGINT or SIGTERM
 trap cleanup SIGINT SIGTERM
@@ -155,11 +213,18 @@ if [ $TWO ]; then
 else
     echo "Monitoring ${PROJECT}. CTRL-C to exit."
 fi
+GITHUB_ACCESS_TOKEN=$(get_github_oauth_token ${TOKEN})
+
 while true; do
-    STATUS=$(curl -f -s "${URL}${PROJECT}/api/xml?xpath=/*/color")
-    STATUS=$(echo $STATUS | sed 's,<color>\|</color>,,g')
+    if [ -z "$PULL_REQ" ]; then
+        STATUS=$(curl -f -s "${BUILD_URL}${PROJECT}/api/xml?xpath=/*/color")
+        STATUS=$(echo $STATUS | sed 's,<color>\|</color>,,g')
+    else
+        echo "trying pr ${PULL_REQ}"
+        STATUS=$(get_pr_status ${PULL_REQ})
+    fi
     if [ $TWO ]; then
-       STATUS2=$(curl -f -s "${URL}${PROJECT2}/api/xml?xpath=/*/color")
+       STATUS2=$(curl -f -s "${BUILD_URL}${PROJECT2}/api/xml?xpath=/*/color")
        STATUS2=$(echo $STATUS2 | sed 's,<color>\|</color>,,g')
        LED1=1
        LED2=2
