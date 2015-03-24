@@ -14,8 +14,6 @@ const int MILLIS = 10 + (300 / LED_NUM);
 const int MILLIS_DELAY = 100;
 const uint8_t MAX_BRIGHT = 127; // 255 is the absolute max
 
-blink1_device *dev;
-
 blink1_device *initializeBlink() {
 #ifdef DEBUG
   std::cout << "opening default device" << std::endl;
@@ -136,6 +134,7 @@ void showTime(blink1_device *dev, const struct tm time) {
 void cleanup(int param) {
   std::cout << "\ncleaning up" << std::endl;
 
+  blink1_device *dev = initializeBlink();
   int rc;
   for (uint8_t ledn = LED_STOP - 1; ledn >= LED_START; --ledn) {
     rc = blink1_fadeToRGBN(dev, MILLIS, 0, 0, 0, ledn);
@@ -147,12 +146,12 @@ void cleanup(int param) {
 int main(int argc, char **argv) {
   signal(SIGINT, cleanup);
 
-  dev = initializeBlink();
-
   std::cout << "press 'ctrl-c' to quit" << std::endl;
   while (true) {
+    blink1_device *dev = initializeBlink();
     struct tm now = getNow();
     showTime(dev, now);
+    blink1_close(dev);
     usleep(10000000);
   }
 
