@@ -12,8 +12,8 @@ BLINK2_TOOL="`which blink2-tool`"
 URL="http://builds.mantidproject.org/job/"
 
 # Build to monitor
-PROJECT="pull_requests"
-PROJECT2="master_clean"
+PROJECT="master_clean"
+PROJECT2="master_incremental"
 
 COLOR_GREEN="0,255,0"
 COLOR_RED="255,0,0"
@@ -88,7 +88,12 @@ function get_color
 function cleanup
 {
     # Turn the Blink(1) off
-    $BLINK1_TOOL --off > /dev/null 2>&1
+    if [ $TWO ]; then
+        $BLINK1_TOOL -l $LED1 --off > /dev/null 2>&1
+        $BLINK1_TOOL -l $LED2 --off > /dev/null 2>&1
+    else
+        $BLINK1_TOOL --off > /dev/null 2>&1
+    fi
     exit $?
 }
 
@@ -153,7 +158,7 @@ fi
 while true; do
     STATUS=$(curl -f -s "${URL}${PROJECT}/api/xml?xpath=/*/color")
     STATUS=$(echo $STATUS | sed 's,<color>\|</color>,,g')
-    if [ $TWO ]; then 
+    if [ $TWO ]; then
        STATUS2=$(curl -f -s "${URL}${PROJECT2}/api/xml?xpath=/*/color")
        STATUS2=$(echo $STATUS2 | sed 's,<color>\|</color>,,g')
        LED1=1
