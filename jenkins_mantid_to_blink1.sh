@@ -74,27 +74,37 @@ function get_github_oauth_token
     fi
 }
 
+function print_pr_details
+{
+    pr=${1}
+    number=$(echo ${pr} | jq '.number' -M -a)
+    state=$(echo ${pr} | jq '.state' -M -a | sed -s 's/\"//g')
+    if [ $(echo ${pr} | jq '.merged' -M -a) == "true" ]; then
+        state="${state}/merged"
+    else
+        state="${state}/unmerged"
+    fi
+
+    status=$(echo ${2} | jq '.state' -M -a| sed -s 's/\"//g')
+    details=$(echo ${2} | jq '.statuses[] | [.context + ": " + .state]' -M -a)
+    details=$(echo ${details} | sed -s 's/\"//g')
+
+    echo "pr${number} ${state}/${status} ${details}"
+
+    return
+}
+
 function get_pr_status
 {
-    pr_full=$(curl -f -s ${GIT_URL}${REPO_DESCR}pulls/${1}${GITHUB_ACCESS_TOKEN})
-    if [ -z "${pr_full}" ]; then
-        echo "error"
+    status=$(echo ${1} | jq '.state' -M | sed -s 's/\"//g')
+    if [ "${status}" == "failure" ]; then
+        echo "red"
+    elif [ "${status}" == "pending" ]; then
+        echo "yellow"
+    elif [ "${status}" == "success" ]; then
+        echo "blue"
     else
-        if [ $(echo ${pr_full} | jq '.state' | sed -s 's/\"//g') == "closed" ]; then
-            echo "green"
-        else
-            sha=$(echo ${pr_full} | jq '.head.sha' | sed -s 's/\"//g')
-            status=$(curl -f -s ${GIT_URL}${REPO_DESCR}status/${sha}${GITHUB_ACCESS_TOKEN} | jq '.state' -M | sed -s 's/\"//g')
-            if [ "${status}" == "failure" ]; then
-                echo "red"
-            elif [ "${status}" == "pending" ]; then
-                echo "yellow"
-            elif [ "${status}" == "success" ]; then
-                echo "blue"
-            else
-                echo "error"
-            fi
-        fi
+        echo "error"
     fi
 }
 
@@ -220,8 +230,20 @@ while true; do
         STATUS=$(curl -f -s "${BUILD_URL}${PROJECT}/api/xml?xpath=/*/color")
         STATUS=$(echo $STATUS | sed 's,<color>\|</color>,,g')
     else
-        echo "trying pr ${PULL_REQ}"
-        STATUS=$(get_pr_status ${PULL_REQ})
+        STATUS=$(curl -f -s ${GIT_URL}${REPO_DESCR}pulls/${PULL_REQ}${GITHUB_ACCESS_TOKEN})
+        # echo "${STATUS}"
+        if [ -z "${STATUS}" ]; then
+            STATUS="error"
+        elif [ $(echo ${STATUS} | jq '.state' | sed -s 's/\"//g') == "closed" ]; then
+            print_pr_details "${STATUS}" ""
+            STATUS="green"
+        else
+            sha=$(echo ${STATUS} | jq '.head.sha' | sed -s 's/\"//g')
+            status_full=$(curl -f -s ${GIT_URL}${REPO_DESCR}status/${sha}${GITHUB_ACCESS_TOKEN})
+            print_pr_details "${STATUS}" "${status_full}"
+            STATUS=$(get_pr_status "${status_full}")
+        fi
+
     fi
     if [ $TWO ]; then
        STATUS2=$(curl -f -s "${BUILD_URL}${PROJECT2}/api/xml?xpath=/*/color")
@@ -231,7 +253,7 @@ while true; do
     else
        LED1=0
     fi
-    if [ $TWO -a $BLINK2_TOOL ]; then
+    if [[ $TWO && -n "$BLINK2_TOOL" ]]; then
         blink=$(get_blink ${STATUS} ${STATUS2})
         $BLINK2_TOOL $blink rgb=$(get_color ${STATUS}) rgb=$(get_color ${STATUS2})
         if [ -z "$blink" ]; then
