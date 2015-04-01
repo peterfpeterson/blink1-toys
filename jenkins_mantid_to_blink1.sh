@@ -228,7 +228,7 @@ GITHUB_ACCESS_TOKEN=$(get_github_oauth_token ${TOKEN})
 while true; do
     if [ -z "$PULL_REQ" ]; then
         STATUS=$(curl -f -s "${BUILD_URL}${PROJECT}/api/xml?xpath=/*/color")
-        STATUS=$(echo $STATUS | sed 's,<color>\|</color>,,g')
+        STATUS=$(echo $STATUS | sed -e 's,<color>,,' -e 's,</color>,,')
     else
         STATUS=$(curl -f -s ${GIT_URL}${REPO_DESCR}pulls/${PULL_REQ}${GITHUB_ACCESS_TOKEN})
         # echo "${STATUS}"
@@ -247,7 +247,7 @@ while true; do
     fi
     if [ $TWO ]; then
        STATUS2=$(curl -f -s "${BUILD_URL}${PROJECT2}/api/xml?xpath=/*/color")
-       STATUS2=$(echo $STATUS2 | sed 's,<color>\|</color>,,g')
+       STATUS2=$(echo $STATUS2 | sed -e 's,<color>,,' -e 's,</color>,,')
        LED1=1
        LED2=2
     else
