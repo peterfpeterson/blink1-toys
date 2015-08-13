@@ -1,0 +1,80 @@
+#!/bin/env python
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+import requests
+import time
+
+# Frequency, in seconds, to poll for project status.
+# Probably best not to set this to too small an interval.
+POLL_FREQUENCY=60
+# end point for getting the status
+URL="http://status.sns.ornl.gov/getRoundBox.jsp"
+
+def getPower(url, params):
+    req = requests.get(url, params=params)
+    if (req.status_code != 200):
+        print("url not ok: status =", req.status_code)
+        return None
+    return parsePower(req.text)
+
+def parsePower(text):
+    text=text.split("\n")
+    for line in text:
+        if "Power on Target" in line:
+            line = line.split(r'</span>')[0]
+            line = line.split(r'>')[-1]
+            (power, units) = line.split()
+            power=float(power)
+
+            if str(units) == 'kW':
+                return power
+            else:
+                raise ValueError("Do not understand units '%s'" % units)
+
+    return None
+
+class RingBuffer:
+    def __init__(self, size=10):
+        self.__max_length=size
+        self.__data = []
+
+    def append(self, value):
+        if value is None:
+            return
+        self.__data.append(value)
+        if len(self.__data) > self.__max_length:
+            del self.__data[0]
+
+    def size(self):
+        return len(self.__data)
+
+    def average(self):
+        sum = 0
+        for item in self.__data:
+            sum += item
+        return sum/float(self.size())
+
+def compareToAverage(value, average, scale=12.):
+    denom = (value+avg)
+    if denom == 0.:
+        return 0.
+    percentChange=2.*100.*(value-avg)/denom
+    return percentChange*scale
+
+if __name__ == "__main__":
+    from argparse import ArgumentParser
+    parser = ArgumentParser(description="Animate blink(1) from SNS "
+                            "accelarator information")
+    parser.add_argument("-f", "--freq", help="polling frequency", type=float,
+                        default=POLL_FREQUENCY)
+    args=parser.parse_args()
+
+    buffer = RingBuffer()
+    while True:
+        # the other option is "FullStatus"
+        power = getPower(URL, {"which":"SNSBeamInfo"})
+        buffer.append(power)
+        avg = buffer.average()
+
+        print(power, buffer.average(), "%.1f" % compareToAverage(power, avg))
+        time.sleep(args.freq)
