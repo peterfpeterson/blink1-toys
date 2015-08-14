@@ -35,7 +35,7 @@ class ColorPicker:
     def __init__(self, min_value=500, max_bright=256):
         self.__min_value=min_value
         self.__max_value=0
-        self.__color_scale = ["%.2x%.2xff" % (i,i) for i in xrange(max_bright)]
+        self.__color_scale = ["%.2x%.2x%.2x" % (i,i,max_bright) for i in xrange(max_bright)]
         self.__color_scale.reverse()
 
     @property
@@ -63,12 +63,13 @@ if __name__ == "__main__":
     from argparse import ArgumentParser
     parser = ArgumentParser(description="Animate blink(1) from SNS "
                             "accelarator information")
-    parser.add_argument("-f", "--freq", type=int,
+    parser.add_argument("-f", "--freq",
                         help="sleep (in s) between updates (default=30)",
-                        default=30)
-    parser.add_argument("-l", "--led", help="led to light (default=1)", type=int,
-                        default=1)
-    parser.add_argument("--bright", help="maximum brightness 0->256 (default=256)",
+                        type=int, default=30)
+    parser.add_argument("-l", "--led", help="led to light (default=1)",
+                        type=int, default=1)
+    parser.add_argument("--bright",
+                        help="maximum brightness 0->256 (default=256)",
                         type=int, default=256)
     args=parser.parse_args()
 
