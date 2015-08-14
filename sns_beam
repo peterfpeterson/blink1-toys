@@ -2,11 +2,9 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import requests
+import subprocess
 import time
 
-# Frequency, in seconds, to poll for project status.
-# Probably best not to set this to too small an interval.
-POLL_FREQUENCY=60
 # end point for getting the status
 URL="http://status.sns.ornl.gov/getRoundBox.jsp"
 
@@ -33,48 +31,57 @@ def parsePower(text):
 
     return None
 
-class RingBuffer:
-    def __init__(self, size=10):
-        self.__max_length=size
-        self.__data = []
+class ColorPicker:
+    def __init__(self, min_value=500, max_bright=256):
+        self.__min_value=min_value
+        self.__max_value=0
+        self.__color_scale = ["%.2x%.2xff" % (i,i) for i in xrange(max_bright)]
+        self.__color_scale.reverse()
 
-    def append(self, value):
+    @property
+    def max(self):
+        return self.__max_value
+
+    def toColor(self, value):
         if value is None:
-            return
-        self.__data.append(value)
-        if len(self.__data) > self.__max_length:
-            del self.__data[0]
+            return "000000"
+        if value > self.__max_value:
+            self.__max_value = value
 
-    def size(self):
-        return len(self.__data)
+        diff=(self.max-value)
+        scale=abs(self.max-self.__min_value)
+        index=int(diff/scale)
 
-    def average(self):
-        sum = 0
-        for item in self.__data:
-            sum += item
-        return sum/float(self.size())
+        return self.__color_scale[index]
 
-def compareToAverage(value, average, scale=12.):
-    denom = (value+avg)
-    if denom == 0.:
-        return 0.
-    percentChange=2.*100.*(value-avg)/denom
-    return percentChange*scale
+def blink1(led, color):
+    cmd=["blink1-tool", "-l %d" %led, "--rgb=%s" % color]
+    print(" ".join(cmd))
+    subprocess.call(cmd)
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
     parser = ArgumentParser(description="Animate blink(1) from SNS "
                             "accelarator information")
-    parser.add_argument("-f", "--freq", help="polling frequency", type=float,
-                        default=POLL_FREQUENCY)
+    parser.add_argument("-f", "--freq", type=int,
+                        help="sleep (in s) between updates (default=30)",
+                        default=30)
+    parser.add_argument("-l", "--led", help="led to light (default=1)", type=int,
+                        default=1)
+    parser.add_argument("--bright", help="maximum brightness 0->256 (default=256)",
+                        type=int, default=256)
     args=parser.parse_args()
 
-    buffer = RingBuffer()
-    while True:
-        # the other option is "FullStatus"
-        power = getPower(URL, {"which":"SNSBeamInfo"})
-        buffer.append(power)
-        avg = buffer.average()
+    picker = ColorPicker(max_bright=args.bright)
+    try:
+        while True:
+            # the other option is "FullStatus"
+            power = getPower(URL, {"which":"SNSBeamInfo"})
+            color = picker.toColor(power)
 
-        print(power, buffer.average(), "%.1f" % compareToAverage(power, avg))
-        time.sleep(args.freq)
+            print(power, end=" ")
+            blink1(args.led,color)
+
+            time.sleep(args.freq)
+    except KeyboardInterrupt:
+        blink1(args.led, "000000") #cleanup
