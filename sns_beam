@@ -22,7 +22,10 @@ def parsePower(text):
             line = line.split(r'</span>')[0]
             line = line.split(r'>')[-1]
             (power, units) = line.split()
-            power=float(power)
+            try:
+                power=float(power)
+            except ValueError:
+                return 0.
 
             if str(units) == 'kW':
                 return power
@@ -34,8 +37,9 @@ def parsePower(text):
 class ColorPicker:
     def __init__(self, min_value=500, max_bright=256):
         self.__min_value=min_value
-        self.__max_value=0
-        self.__color_scale = ["%.2x%.2x%.2x" % (i,i,max_bright) for i in xrange(max_bright)]
+        self.__max_value=1000. # 1kW by default
+        self.__color_scale \
+            = ["%.2x%.2x%.2x" % (i,i,max_bright) for i in xrange(max_bright)]
         self.__color_scale.reverse()
 
     @property
@@ -48,9 +52,16 @@ class ColorPicker:
         if value > self.__max_value:
             self.__max_value = value
 
-        diff=(self.max-value)
+        # crop the value off by minimum value
+        value=max(value-self.__min_value, 0.)
+        # full scale is between min and maximum values
         scale=abs(self.max-self.__min_value)
-        index=int(diff/scale)
+        # find value within range, reset to zero if too small
+        diff=max(scale-value, 0.)
+        # how far along the color scale
+        percent=float(len(self.__color_scale))*diff/scale
+        # accomodate going off scale
+        index=min(int(percent), len(self.__color_scale)-1)
 
         return self.__color_scale[index]
 
