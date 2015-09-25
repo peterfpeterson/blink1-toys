@@ -15,7 +15,7 @@ GIT_URL="https://api.github.com/repos/"
 REPO_DESCR="mantidproject/mantid/"
 
 # Build to monitor
-PROJECT="master_clean"
+PROJECT="master_clean-rhel7"
 PROJECT2="master_incremental"
 
 COLOR_GREEN="0,255,0"
