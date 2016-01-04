@@ -15,13 +15,13 @@ const int MILLIS_DELAY = 100;
 const uint8_t MAX_BRIGHT = 127; // 255 is the absolute max
 
 blink1_device *initializeBlink() {
-#ifdef DEBUG
+#ifndef NDEBUG
   std::cout << "opening default device" << std::endl;
 #endif
 
   blink1_device *dev = blink1_open();
 
-#ifdef DEBUG
+#ifndef NDEBUG
   std::cout << "serial: " << blink1_getSerialForDev(dev)
             << ((blink1_isMk2(dev)) ? " (mk2)" : "")
             << " path: " << blink1_getCachedPath(blink1_getCacheIndexByDev(dev))
@@ -42,7 +42,7 @@ vector<uint8_t> createGradient(const char *label, const int led_max) {
     }
   }
 
-#ifdef DEBUG
+#ifndef NDEBUG
   std::cout << label << "=" << led_max << ": ";
   for (auto it = gradient.begin(); it != gradient.end(); ++it)
     std::cout << static_cast<int>(*it) << " ";
@@ -80,7 +80,7 @@ void showTime(blink1_device *dev, const struct tm time) {
   int led_sec = time.tm_sec * LED_NUM / 60;
 // FIXME - not right for last 5 seconds
 
-#ifdef DEBUG
+#ifndef NDEBUG
   std::cout << "time " << time.tm_hour << ":" << time.tm_min << ":"
             << time.tm_sec << std::endl;
   std::cout << "LED_NUM = " << static_cast<int>(LED_NUM) << std::endl;
@@ -101,7 +101,7 @@ void showTime(blink1_device *dev, const struct tm time) {
   int grad_index, grad_index_red, grad_index_green, grad_index_blue;
   int rc;
   for (int i = 0; i < LED_NUM; ++i) {
-#ifdef DEBUG
+#ifndef NDEBUG
     std::cout << "------------ i=" << i << std::endl;
 #endif
     for (int j = 0; j < LED_NUM; ++j) {
@@ -111,7 +111,7 @@ void showTime(blink1_device *dev, const struct tm time) {
       grad_index_green = calcGradIndex(i, j, led_green);
       grad_index_blue = calcGradIndex(i, j, led_blue);
 
-#ifdef DEBUG
+#ifndef NDEBUG
       printf("L%2d\tG%2d\tr[%2d] %3d", ledn, grad_index, grad_index_red,
              gradient_red[grad_index_red]);
       printf("\tg[%2d] %3d", grad_index_green,
