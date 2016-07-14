@@ -1,5 +1,6 @@
 #include <blink1-lib.h>
 #include <iostream>
+#include <memory>
 #include <signal.h>
 #include <vector>
 #include <time.h>
@@ -13,6 +14,47 @@ const uint8_t LED_NUM = LED_STOP - LED_START;
 const int MILLIS = 10 + (300 / LED_NUM);
 const int MILLIS_DELAY = 100;
 const uint8_t MAX_BRIGHT = 127; // 255 is the absolute max
+
+class Blink {
+public:
+  Blink() : dev(NULL) {
+#ifndef NDEBUG
+  std::cout << "opening default device" << std::endl;
+#endif
+
+  this->dev = blink1_open();
+
+#ifndef NDEBUG
+  std::cout << "serial: " << blink1_getSerialForDev(dev)
+            << ((blink1_isMk2(dev)) ? " (mk2)" : "")
+            << " path: " << blink1_getCachedPath(blink1_getCacheIndexByDev(dev))
+            << std::endl;
+#endif
+  }
+
+  ~Blink() {
+    if (this->dev) {
+      blink1_close(dev);
+    }
+  }
+
+  int fadeToRGBN(const uint8_t red, const uint8_t green, const uint8_t blue, const uint8_t ledn) {
+    return blink1_fadeToRGBN(this->dev, MILLIS, red, green, blue, ledn);
+  }
+
+  int fadeToOff() {
+    int rc = 0;
+    for (uint8_t ledn = LED_STOP - 1; ledn >= LED_START; --ledn) {
+      rc += this->fadeToRGBN(0, 0, 0, ledn);
+      blink1_sleep(MILLIS_DELAY);
+    }
+
+    return rc;
+  }
+
+private:
+  blink1_device* dev;
+};
 
 blink1_device *initializeBlink() {
 #ifndef NDEBUG
@@ -69,7 +111,7 @@ int calcGradIndex(const int i, const int j, int led_max) {
   }
 }
 
-void showTime(blink1_device *dev, const struct tm time) {
+void showTime(std::unique_ptr<Blink> &blink1, const struct tm time) {
   int led_hour = (time.tm_hour % 12);
   if (led_hour == 0)
     led_hour = LED_NUM;
@@ -78,7 +120,7 @@ void showTime(blink1_device *dev, const struct tm time) {
   // FIXME - not right for last 5 minutes
 
   int led_sec = time.tm_sec * LED_NUM / 60;
-// FIXME - not right for last 5 seconds
+  // FIXME - not right for last 5 seconds
 
 #ifndef NDEBUG
   std::cout << "time " << time.tm_hour << ":" << time.tm_min << ":"
@@ -120,11 +162,11 @@ void showTime(blink1_device *dev, const struct tm time) {
 #endif
 
       if (j <= i) {
-        rc = blink1_fadeToRGBN(dev, MILLIS, gradient_red[grad_index_red],
+        rc = blink1->fadeToRGBN(gradient_red[grad_index_red],
                                gradient_green[grad_index_green],
                                gradient_blue[grad_index_blue], ledn);
       } else {
-        rc = blink1_fadeToRGBN(dev, MILLIS, 0, 0, 0, ledn);
+        rc = blink1->fadeToRGBN(0, 0, 0, ledn);
       }
     }
     blink1_sleep(MILLIS_DELAY);
@@ -134,12 +176,8 @@ void showTime(blink1_device *dev, const struct tm time) {
 void cleanup(int param) {
   std::cout << "\ncleaning up" << std::endl;
 
-  blink1_device *dev = initializeBlink();
-  int rc;
-  for (uint8_t ledn = LED_STOP - 1; ledn >= LED_START; --ledn) {
-    rc = blink1_fadeToRGBN(dev, MILLIS, 0, 0, 0, ledn);
-    blink1_sleep(MILLIS_DELAY);
-  }
+  auto blink = std::make_unique<Blink>();
+  blink->fadeToOff();
   exit(0);
 }
 
@@ -148,10 +186,11 @@ int main(int argc, char **argv) {
 
   std::cout << "press 'ctrl-c' to quit" << std::endl;
   while (true) {
-    blink1_device *dev = initializeBlink();
-    struct tm now = getNow();
-    showTime(dev, now);
-    blink1_close(dev);
+    {
+      auto blink = std::make_unique<Blink>();
+      struct tm now = getNow();
+      showTime(blink, now);
+    }
     usleep(10000000);
   }
 
