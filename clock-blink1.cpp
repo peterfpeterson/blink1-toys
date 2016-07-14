@@ -15,6 +15,14 @@ const int MILLIS = 10 + (300 / LED_NUM);
 const int MILLIS_DELAY = 100;
 const uint8_t MAX_BRIGHT = 127; // 255 is the absolute max
 
+struct Color {
+  uint8_t red;
+  uint8_t green;
+  uint8_t blue;
+};
+
+const Color COLOR_OFF{0, 0, 0};
+
 class Blink {
 public:
   Blink() : dev(NULL) {
@@ -38,14 +46,15 @@ public:
     }
   }
 
-  int fadeToRGBN(const uint8_t red, const uint8_t green, const uint8_t blue, const uint8_t ledn) {
-    return blink1_fadeToRGBN(this->dev, MILLIS, red, green, blue, ledn);
+  int fadeToRGB(const Color &color, const uint8_t ledn) {
+    return blink1_fadeToRGBN(this->dev, MILLIS, color.red, color.green,
+                             color.blue, ledn);
   }
 
   int fadeToOff() {
     int rc = 0;
     for (uint8_t ledn = LED_STOP - 1; ledn >= LED_START; --ledn) {
-      rc += this->fadeToRGBN(0, 0, 0, ledn);
+      rc += this->fadeToRGB(COLOR_OFF, ledn);
       blink1_sleep(MILLIS_DELAY);
     }
 
@@ -55,23 +64,6 @@ public:
 private:
   blink1_device* dev;
 };
-
-blink1_device *initializeBlink() {
-#ifndef NDEBUG
-  std::cout << "opening default device" << std::endl;
-#endif
-
-  blink1_device *dev = blink1_open();
-
-#ifndef NDEBUG
-  std::cout << "serial: " << blink1_getSerialForDev(dev)
-            << ((blink1_isMk2(dev)) ? " (mk2)" : "")
-            << " path: " << blink1_getCachedPath(blink1_getCacheIndexByDev(dev))
-            << std::endl;
-#endif
-
-  return dev;
-}
 
 vector<uint8_t> createGradient(const char *label, const int led_max) {
   vector<uint8_t> gradient(LED_NUM, 0);
@@ -162,11 +154,12 @@ void showTime(std::unique_ptr<Blink> &blink1, const struct tm time) {
 #endif
 
       if (j <= i) {
-        rc = blink1->fadeToRGBN(gradient_red[grad_index_red],
-                               gradient_green[grad_index_green],
-                               gradient_blue[grad_index_blue], ledn);
+        rc = blink1->fadeToRGB(Color{gradient_red[grad_index_red],
+                                     gradient_green[grad_index_green],
+                                     gradient_blue[grad_index_blue]},
+                               ledn);
       } else {
-        rc = blink1->fadeToRGBN(0, 0, 0, ledn);
+        rc = blink1->fadeToRGB(COLOR_OFF, ledn);
       }
     }
     blink1_sleep(MILLIS_DELAY);
