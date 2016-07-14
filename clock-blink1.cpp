@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <array>
 #include <blink1-lib.h>
 #include <iostream>
 #include <memory>
@@ -15,6 +17,8 @@ const int MILLIS = 10 + (300 / LED_NUM);
 const int MILLIS_DELAY = 100;
 const uint8_t MAX_BRIGHT = 127; // 255 is the absolute max
 
+/* -------------------------------------------------------------------------- */
+
 struct Color {
   uint8_t red;
   uint8_t green;
@@ -22,6 +26,38 @@ struct Color {
 };
 
 const Color COLOR_OFF{0, 0, 0};
+
+struct LedColor {
+  Color color;
+  uint8_t number;
+};
+
+/* -------------------------------------------------------------------------- */
+
+typedef std::array<Color, LED_STOP-LED_START> FrameStill;
+
+typedef std::array<LedColor, LED_STOP-LED_START> FrameAnim;
+
+FrameStill generateFill(const Color &color) {
+  FrameStill frame;
+  frame.fill(color);
+  return frame;
+}
+
+FrameAnim generateFillDecreasing(const Color &color) {
+  LedColor led{color, 0};
+  uint8_t ledn = LED_STOP-1;
+
+  FrameAnim frame;
+  frame.fill(led);
+  for (auto & led : frame) {
+    led.number = ledn;
+    ledn -= 1;
+  }
+  return frame;
+}
+
+/* -------------------------------------------------------------------------- */
 
 class Blink {
 public:
@@ -51,19 +87,40 @@ public:
                              color.blue, ledn);
   }
 
-  int fadeToOff() {
+  /// Convenience function
+  int showFrame(const FrameStill &frame) {
+    uint8_t ledn = LED_START;
     int rc = 0;
-    for (uint8_t ledn = LED_STOP - 1; ledn >= LED_START; --ledn) {
-      rc += this->fadeToRGB(COLOR_OFF, ledn);
-      blink1_sleep(MILLIS_DELAY);
+    for (const auto& color : frame) {
+      rc += fadeToRGB(color, ledn);
+      ledn += 1;
     }
-
     return rc;
+  }
+
+  /// Frame is played in increasing ledn order
+  int showFrame(const FrameAnim &frame, const int delay = MILLIS_DELAY) {
+    uint8_t ledn = LED_START;
+    int rc = 0;
+    for (const auto& led : frame) {
+      rc += fadeToRGB(led.color, led.number);
+      blink1_sleep(delay);
+      ledn += 1;
+    }
+    return rc;
+  }
+
+  /// Convenience function to turn all the leds off in decreasing order
+  int fadeToOff() {
+    FrameAnim frame = generateFillDecreasing(COLOR_OFF);
+    return showFrame(frame);
   }
 
 private:
   blink1_device* dev;
 };
+
+/* -------------------------------------------------------------------------- */
 
 vector<uint8_t> createGradient(const char *label, const int led_max) {
   vector<uint8_t> gradient(LED_NUM, 0);
