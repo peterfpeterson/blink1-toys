@@ -32,6 +32,15 @@ COLOR_ABORTED="100,100,100" # light grey
 
 ### FUNCTIONS ###
 
+# jq is the thing used for parsing fetched json
+function check_jq
+{
+    if [ ! $(command -v jq) ]; then
+        echo "Need to install 'jq'"
+        exit -1
+    fi
+}
+
 # Set the Blink(1) to a color in "R,G,B" format, which must be supplied
 # as an argument.
 function set_blink1_color
@@ -77,6 +86,7 @@ function get_github_oauth_token
 function print_pr_details
 {
     pr=${1}
+    check_jq
     number=$(echo ${pr} | jq '.number' -M -a)
     state=$(echo ${pr} | jq '.state' -M -a | sed -s 's/\"//g')
     if [ $(echo ${pr} | jq '.merged' -M -a) == "true" ]; then
@@ -96,6 +106,7 @@ function print_pr_details
 
 function get_pr_status
 {
+    check_jq
     status=$(echo ${1} | jq '.state' -M | sed -s 's/\"//g')
     if [ "${status}" == "failure" ]; then
         echo "red"
@@ -232,6 +243,7 @@ while true; do
     else
         STATUS=$(curl -f -s ${GIT_URL}${REPO_DESCR}pulls/${PULL_REQ}${GITHUB_ACCESS_TOKEN})
         # echo "${STATUS}"
+        check_jq
         if [ -z "${STATUS}" ]; then
             STATUS="error"
         elif [ $(echo ${STATUS} | jq '.state' | sed -s 's/\"//g') == "closed" ]; then
