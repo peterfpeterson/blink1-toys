@@ -9,7 +9,7 @@ BLINK1_TOOL="`which blink1-tool`"
 BLINK2_TOOL="`which blink2-tool`"
 
 # URL of mantid jenkins
-BUILD_URL="http://builds.mantidproject.org/job/"
+BUILD_URL="https://builds.mantidproject.org/job/"
 # URL of git project
 GIT_URL="https://api.github.com/repos/"
 REPO_DESCR="mantidproject/mantid/"
